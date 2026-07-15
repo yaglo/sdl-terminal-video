@@ -15,7 +15,7 @@ It handles both SDL rendering paths:
 Mouse, keyboard, resize, relative-mouse "mouselook" (Kitty/Ubiquitty pointer
 lock), shared-memory/zlib frame transports, and 4:3 aspect correction are all
 supported and auto-detected per terminal. It originated in
-[terminal-dosbox-x](https://github.com/) (running DOSBox-X in a terminal) and is
+terminal-dosbox-x (running DOSBox-X in a terminal) and is
 a general-purpose driver — DOSBox-X is just one SDL2 app among many.
 
 This is an **overlay**, not a fork: `build.sh` fetches a pinned upstream SDL2,
@@ -24,7 +24,7 @@ grafts one source file plus a two-line registration, and builds a static
 
 ## Requirements
 
-- A Kitty-graphics terminal: **[Ubiquitty](https://github.com/), kitty, or Ghostty**.
+- A Kitty-graphics terminal: **[Ubiquitty](https://github.com/yaglo/ubiquitty), kitty, or Ghostty**.
 - To build SDL: a C toolchain, `git`, `make`, and autotools (what upstream SDL2
   needs). macOS or Linux.
 - **OpenGL support is macOS-only today** (headless CGL + FBO). The framebuffer
