@@ -1,0 +1,8 @@
+# build.sh working tree (pinned SDL checkout) and output
+/.build/
+/install/
+
+# editor / OS cruft
+.DS_Store
+*.o
+*.lo
