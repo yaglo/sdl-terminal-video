@@ -505,9 +505,11 @@ static void term_enter(void)
     }
     /* alt screen + hide cursor, then push kitty keyboard flags: 1 disambiguate
        + 2 report-event-types (press/release -> real key-hold) + 8 report-all-
-       keys (every key, incl. modifiers, as CSI-u). Terminals without kitty
+       keys (every key, incl. modifiers, as CSI-u) + 16 report-associated-text
+       (so a key that produces text carries its code point in the CSI-u text
+       field -> SDL_TEXTINPUT for menu/console fields). Terminals without kitty
        keyboard ignore it and we fall back to legacy byte input. */
-    term_write_str("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H\x1b[>11u"
+    term_write_str("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H\x1b[>27u"
                    "\x1b[?1003;1006;1016h" /* mouse: any-motion + SGR + SGR-pixel */
                    "\x1b[14t"              /* query text-area pixel size (precise advance) */
                    "\x1b[16t");            /* query cell pixel size (fallback) */
@@ -1866,6 +1868,37 @@ static void term_send_key(SDL_Scancode sc, int shift)
         SDL_SendKeyboardKey(SDL_RELEASED, SDL_SCANCODE_LSHIFT);
 }
 
+/* Emit an SDL_TEXTINPUT event for one Unicode code point. SDL_SendKeyboardKey
+   (scancodes) drives bindings/navigation but never produces text, so text fields
+   (a game's console, the multiplayer name/IP boxes) stay empty without this.
+   Control chars are skipped (SDL_SendKeyboardText drops them anyway). */
+static void term_send_text_cp(unsigned int cp)
+{
+    char u[5];
+    int n = 0;
+    if (cp < 0x20 || cp == 0x7f)
+        return;
+    if (cp < 0x80) {
+        u[n++] = (char)cp;
+    } else if (cp < 0x800) {
+        u[n++] = (char)(0xC0 | (cp >> 6));
+        u[n++] = (char)(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        u[n++] = (char)(0xE0 | (cp >> 12));
+        u[n++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        u[n++] = (char)(0x80 | (cp & 0x3F));
+    } else if (cp <= 0x10FFFF) {
+        u[n++] = (char)(0xF0 | (cp >> 18));
+        u[n++] = (char)(0x80 | ((cp >> 12) & 0x3F));
+        u[n++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        u[n++] = (char)(0x80 | (cp & 0x3F));
+    } else {
+        return;
+    }
+    u[n] = '\0';
+    SDL_SendKeyboardText(u);
+}
+
 /* ESC [ <num> ~  -> nav / function keys */
 static SDL_Scancode term_csi_tilde(int num)
 {
@@ -2331,6 +2364,12 @@ static void term_process_input(const unsigned char *buf, int n)
                     term_apply_mods((bm & 1) != 0, (bm & 4) != 0, (bm & 2) != 0);
                 }
                 term_key_state(sc, event != 3); /* event 3 = release */
+                /* Associated text (kitty flag 16, CSI-u field 2 -> num2): emit
+                   SDL_TEXTINPUT on press/repeat so edit fields receive characters.
+                   Only set for text-producing keys; the terminal omits it when
+                   Ctrl/Alt are down, so it never doubles ioq3's Ctrl-key handling. */
+                if (event != 3 && num2)
+                    term_send_text_cp((unsigned int)num2);
                 i += 1 + consumed;
                 continue;
             }
@@ -2348,6 +2387,10 @@ static void term_process_input(const unsigned char *buf, int n)
             SDL_Scancode sc = ascii_to_scancode(c, &shift);
             if (sc != SDL_SCANCODE_UNKNOWN)
                 term_send_key(sc, shift); /* legacy plain byte -> tap */
+            /* Legacy terminals: the byte IS the character, so emit text too (edit
+               fields need SDL_TEXTINPUT). Printable ASCII only; term_send_text_cp
+               skips controls. */
+            term_send_text_cp((unsigned int)c);
         }
         i++;
     }
