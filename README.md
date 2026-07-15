@@ -4,6 +4,10 @@ An SDL2 **`terminal` video driver**: it renders any SDL2 program into a text
 terminal that speaks the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
 — no window, no X11, no Wayland. Select it with `SDL_VIDEODRIVER=terminal`.
 
+![ioquake3 running inside an 80×25 terminal via SDL_VIDEODRIVER=terminal](docs/ioquake3-terminal.png)
+
+*ioquake3 (OpenGL) rendering live in a terminal — headless CGL → FBO → Kitty graphics.*
+
 It handles both SDL rendering paths:
 
 - **Software framebuffer** (`SDL_GetWindowSurface`, `SDL_Renderer` software) — the
